@@ -107,7 +107,7 @@ const BatchFeedsMonitor = () => {
             <h1 className="app-title">Batch Feeds monitor</h1>
           </div>
           <div className="header-right">
-            <span className="user-email">meri.shraddha@ubs.com</span>
+            <span className="user-email">ankit@ubs.com</span>
             <div className="user-avatar"></div>
           </div>
         </div>
