@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import Sidebar from './components/Sidebar';
 import Filters from './components/Filters';
 import Table from './components/Table';
-import './styles.css';
+import './Styles.css';
 
 const BatchFeedsMonitor = () => {
   const [selectedAction, setSelectedAction] = useState('view');
