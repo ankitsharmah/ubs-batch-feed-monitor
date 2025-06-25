@@ -37,7 +37,7 @@ const VirtualizedUserTable = () => {
       display: "flex",
       alignItems: "center"
     };
-
+console.log(columnIndex,columnWidth)
     if (rowIndex === 0 && columnIndex === 0) {
       return (
         <div key={key} style={{ ...cellStyle, background: "#e6e6e6" }}>
@@ -79,7 +79,7 @@ const VirtualizedUserTable = () => {
   return (
     <div className="outer-scroll-final">
       <MultiGrid
-        fixedColumnCount={1}
+        // fixedColumnCount={1}
         fixedRowCount={1}
         rowHeight={rowHeight}
         columnWidth={columnWidth}

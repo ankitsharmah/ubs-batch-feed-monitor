@@ -1,9 +1,22 @@
 import React, { useState, useEffect } from 'react';
+import { MultiGrid } from 'react-virtualized';
 
 const Table = ({ data, allData, setData, selectedAction }) => {
   const [showInsertForm, setShowInsertForm] = useState(false);
   const [editingRecord, setEditingRecord] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [containerWidth, setContainerWidth] = useState(900);
+
+// Add this useEffect to handle container width updates
+useEffect(() => {
+  const updateWidth = () => {
+    setContainerWidth(900); // Match your CSS max-width
+  };
+  
+  updateWidth();
+  window.addEventListener('resize', updateWidth);
+  return () => window.removeEventListener('resize', updateWidth);
+}, []);
   const [formData, setFormData] = useState({
     jobName: '',
     vendorName: '',
@@ -13,6 +26,19 @@ const Table = ({ data, allData, setData, selectedAction }) => {
     receivedStatus: '',
     notStarted: ''
   });
+
+  // MultiGrid configuration
+  const rowHeight = 40;
+  const columnWidth = ({ index }) => {
+    if (index === 0) return 80; // Serial number column - smaller width
+    if (index === columnCount - 1) return 120; // Action column - smaller width
+    return 180; // Other columns - standard width
+  };
+  const columnHeaders = [
+    "S.No", "Job Name", "Vendor Name", "DQ", "Transmitted on $Tra", 
+    "Terminal on Time", "Received Status", "Not Start", "Action"
+  ];
+  const columnCount = columnHeaders.length;
 
   // Show form automatically when insert action is selected
   useEffect(() => {
@@ -24,7 +50,14 @@ const Table = ({ data, allData, setData, selectedAction }) => {
       setEditingRecord(null);
     }
   }, [selectedAction]);
-
+// Calculate total table width based on columns
+const getTotalTableWidth = () => {
+  let totalWidth = 0;
+  for (let i = 0; i < columnCount; i++) {
+    totalWidth += columnWidth({ index: i });
+  }
+  return totalWidth;
+};
   // API simulation functions
   const apiCall = async (method, endpoint, requestData = null) => {
     setIsLoading(true);
@@ -38,26 +71,22 @@ const Table = ({ data, allData, setData, selectedAction }) => {
       // Simulate API response based on method
       switch (method) {
         case 'POST':
-          // Simulate successful insert
           return { 
             success: true, 
             id: Date.now(),
             message: 'Record created successfully'
           };
         case 'PUT':
-          // Simulate successful update
           return { 
             success: true, 
             message: 'Record updated successfully'
           };
         case 'DELETE':
-          // Simulate successful delete
           return { 
             success: true, 
             message: 'Record deleted successfully'
           };
         case 'GET':
-          // Simulate fetch
           return { 
             success: true, 
             data: requestData,
@@ -249,38 +278,47 @@ const Table = ({ data, allData, setData, selectedAction }) => {
   };
 
   const getActionButton = (record) => {
+    const buttonStyle = {
+      padding: '4px 8px',
+      border: 'none',
+      borderRadius: '4px',
+      cursor: 'pointer',
+      fontSize: '12px',
+      minWidth: '60px'
+    };
+
     switch(selectedAction) {
       case 'view':
         return (
           <button 
             onClick={() => handleSendMail(record)}
-            className="action-btn mail-btn"
+            style={{ ...buttonStyle, backgroundColor: '#007bff', color: 'white' }}
             title="Send Mail"
             disabled={isLoading}
           >
-            📧
+            <input type='checkbox'/>
           </button>
         );
       case 'update':
         return (
           <button 
             onClick={() => handleEdit(record)}
-            className="action-btn edit-btn"
+            style={{ ...buttonStyle, backgroundColor: '#28a745', color: 'white' }}
             title="Edit"
             disabled={isLoading}
           >
-            ✏️
+            ✏️ Edit
           </button>
         );
       case 'delete':
         return (
           <button 
             onClick={() => handleDelete(record)}
-            className="action-btn delete-btn"
+            style={{ ...buttonStyle, backgroundColor: '#dc3545', color: 'white' }}
             title="Delete"
             disabled={isLoading}
           >
-            🗑️
+            🗑️ Delete
           </button>
         );
       default:
@@ -288,8 +326,90 @@ const Table = ({ data, allData, setData, selectedAction }) => {
     }
   };
 
+  // MultiGrid cell renderer
+  const cellRenderer = ({ columnIndex, rowIndex, key, style }) => {
+    const isEvenRow = rowIndex % 2 === 0;
+    const cellStyle = {
+      ...style,
+      padding: "8px",
+      boxSizing: "border-box",
+      borderBottom: "1px solid #ddd",
+      borderRight: "1px solid #ddd",
+      background: rowIndex === 0 ? "#f8f9fa" : (isEvenRow ? "#f9f9f9" : "#fff"),
+      fontWeight: rowIndex === 0 ? "bold" : "normal",
+      display: "flex",
+      alignItems: "center",
+      fontSize: "13px",
+      overflow: "hidden"
+    };
+
+    // Header row
+    if (rowIndex === 0) {
+      return (
+        <div key={key} style={cellStyle} title={columnHeaders[columnIndex]}>
+          {columnHeaders[columnIndex]}
+        </div>
+      );
+    }
+
+    // Data rows
+    const record = data[rowIndex - 1];
+    if (!record) {
+      return <div key={key} style={cellStyle}></div>;
+    }
+
+    let cellContent = '';
+    switch (columnIndex) {
+      case 0:
+        cellContent = rowIndex; // Serial number
+        break;
+      case 1:
+        cellContent = record.jobName;
+        break;
+      case 2:
+        cellContent = record.vendorName;
+        break;
+      case 3:
+        cellContent = record.dq;
+        break;
+      case 4:
+        cellContent = record.transmitted;
+        break;
+      case 5:
+        cellContent = record.terminal;
+        break;
+      case 6:
+        cellContent = record.receivedStatus;
+        break;
+      case 7:
+        cellContent = record.notStarted;
+        break;
+      case 8:
+        return (
+          <div key={key} style={{ ...cellStyle, justifyContent: 'center' }}>
+            {getActionButton(record)}
+          </div>
+        );
+      default:
+        cellContent = '';
+    }
+
+    return (
+      <div key={key} style={cellStyle} title={cellContent}>
+        <span style={{
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          width: "100%"
+        }}>
+          {cellContent}
+        </span>
+      </div>
+    );
+  };
+
   return (
-    <div className="table-container">
+    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
       {/* Loading Overlay */}
       {isLoading && (
         <div style={{
@@ -312,15 +432,33 @@ const Table = ({ data, allData, setData, selectedAction }) => {
 
       {/* Insert/Update Form */}
       {(selectedAction === 'insert' || showInsertForm) && (
-        <div className="form-container">
-          <div className="form-header">
-            <h3 className="form-title">
+        <div style={{ 
+          marginBottom: '20px', 
+          padding: '20px', 
+          border: '1px solid #ddd', 
+          borderRadius: '8px',
+          backgroundColor: '#f8f9fa'
+        }}>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            marginBottom: '15px' 
+          }}>
+            <h3 style={{ margin: 0, color: '#333' }}>
               {editingRecord ? 'Update Record' : 'Add New Record'}
             </h3>
             {selectedAction !== 'insert' && (
               <button
                 onClick={() => setShowInsertForm(!showInsertForm)}
-                className="toggle-form-btn"
+                style={{
+                  padding: '8px 12px',
+                  border: 'none',
+                  borderRadius: '4px',
+                  backgroundColor: '#6c757d',
+                  color: 'white',
+                  cursor: 'pointer'
+                }}
                 disabled={isLoading}
               >
                 {showInsertForm ? '❌ Close Form' : '➕ New Record'}
@@ -329,90 +467,165 @@ const Table = ({ data, allData, setData, selectedAction }) => {
           </div>
           
           {(showInsertForm || selectedAction === 'insert') && (
-            <div className="form-grid">
-              <div className="form-group">
-                <label className="form-label">Job Name *</label>
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
+              gap: '15px' 
+            }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                  Job Name *
+                </label>
                 <input
                   type="text"
                   value={formData.jobName}
                   onChange={(e) => handleFormInputChange('jobName', e.target.value)}
-                  className="form-input"
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    boxSizing: 'border-box'
+                  }}
                   disabled={isLoading}
                   required
                 />
               </div>
-              <div className="form-group">
-                <label className="form-label">Vendor Name *</label>
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                  Vendor Name *
+                </label>
                 <input
                   type="text"
                   value={formData.vendorName}
                   onChange={(e) => handleFormInputChange('vendorName', e.target.value)}
-                  className="form-input"
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    boxSizing: 'border-box'
+                  }}
                   disabled={isLoading}
                   required
                 />
               </div>
-              <div className="form-group">
-                <label className="form-label">DQ</label>
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                  DQ
+                </label>
                 <input
                   type="text"
                   value={formData.dq}
                   onChange={(e) => handleFormInputChange('dq', e.target.value)}
-                  className="form-input"
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    boxSizing: 'border-box'
+                  }}
                   disabled={isLoading}
                 />
               </div>
-              <div className="form-group">
-                <label className="form-label">Transmitted</label>
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                  Transmitted
+                </label>
                 <input
                   type="text"
                   value={formData.transmitted}
                   onChange={(e) => handleFormInputChange('transmitted', e.target.value)}
-                  className="form-input"
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    boxSizing: 'border-box'
+                  }}
                   disabled={isLoading}
                 />
               </div>
-              <div className="form-group">
-                <label className="form-label">Terminal</label>
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                  Terminal
+                </label>
                 <input
                   type="text"
                   value={formData.terminal}
                   onChange={(e) => handleFormInputChange('terminal', e.target.value)}
-                  className="form-input"
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    boxSizing: 'border-box'
+                  }}
                   disabled={isLoading}
                 />
               </div>
-              <div className="form-group">
-                <label className="form-label">Received Status</label>
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                  Received Status
+                </label>
                 <input
                   type="text"
                   value={formData.receivedStatus}
                   onChange={(e) => handleFormInputChange('receivedStatus', e.target.value)}
-                  className="form-input"
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    boxSizing: 'border-box'
+                  }}
                   disabled={isLoading}
                 />
               </div>
-              <div className="form-group full-width">
-                <label className="form-label">Not Started</label>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                  Not Started
+                </label>
                 <input
                   type="text"
                   value={formData.notStarted}
                   onChange={(e) => handleFormInputChange('notStarted', e.target.value)}
-                  className="form-input"
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    boxSizing: 'border-box'
+                  }}
                   disabled={isLoading}
                 />
               </div>
-              <div className="form-actions full-width">
+              <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '10px', marginTop: '10px' }}>
                 <button
                   onClick={editingRecord ? handleUpdate : handleInsert}
-                  className="form-btn submit-btn"
+                  style={{
+                    padding: '10px 20px',
+                    border: 'none',
+                    borderRadius: '4px',
+                    backgroundColor: '#007bff',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontWeight: 'bold'
+                  }}
                   disabled={isLoading}
                 >
                   {isLoading ? 'Processing...' : (editingRecord ? 'Update Record' : 'Add Record')}
                 </button>
                 <button
                   onClick={resetForm}
-                  className="form-btn cancel-btn"
+                  style={{
+                    padding: '10px 20px',
+                    border: '1px solid #6c757d',
+                    borderRadius: '4px',
+                    backgroundColor: 'white',
+                    color: '#6c757d',
+                    cursor: 'pointer'
+                  }}
                   disabled={isLoading}
                 >
                   Cancel
@@ -423,75 +636,72 @@ const Table = ({ data, allData, setData, selectedAction }) => {
         </div>
       )}
 
-      {/* Data Table */}
+      {/* Data Table with MultiGrid */}
       {!(selectedAction === 'insert' && showInsertForm) && (
         <>
-          <div className="table-header">
-            <h2 className="table-title">
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            marginBottom: '15px' 
+          }}>
+            <h2 style={{ margin: 0, color: '#333' }}>
               {selectedAction.charAt(0).toUpperCase() + selectedAction.slice(1)} Mode
             </h2>
             <button 
-              className="export-btn"
               onClick={handleExport}
+              style={{
+                padding: '8px 16px',
+                border: 'none',
+                borderRadius: '4px',
+                backgroundColor: '#28a745',
+                color: 'white',
+                cursor: 'pointer',
+                fontWeight: 'bold'
+              }}
               disabled={isLoading}
             >
               📤 EXPORT
             </button>
           </div>
           
-          <div className="table-wrapper">
-            <table className="data-table">
-              <thead className="table-head">
-                <tr>
-                  <th className="table-th">Job Name</th>
-                  <th className="table-th">Vendor Name</th>
-                  <th className="table-th">DQ</th>
-                  <th className="table-th">Transmitted on $Tra</th>
-                  <th className="table-th">Terminal on Time</th>
-                  <th className="table-th">Received Status</th>
-                  <th className="table-th">Not Start</th>
-                  <th className="table-th">Action</th>
-                </tr>
-              </thead>
-              <tbody className="table-body">
-                {data.length === 0 ? (
-                  <tr>
-                    <td colspan="8" style={{ textAlign: 'center', padding: '20px' }}>
-                      No data found matching the current filters.
-                    </td>
-                  </tr>
-                ) : (
-                  data.map((record) => (
-                    <tr key={record.id} className="table-row">
-                      <td className="table-td" title={record.jobName}>
-                        {record.jobName}
-                      </td>
-                      <td className="table-td" title={record.vendorName}>
-                        {record.vendorName}
-                      </td>
-                      <td className="table-td" title={record.dq}>
-                        {record.dq}
-                      </td>
-                      <td className="table-td" title={record.transmitted}>
-                        {record.transmitted}
-                      </td>
-                      <td className="table-td" title={record.terminal}>
-                        {record.terminal}
-                      </td>
-                      <td className="table-td" title={record.receivedStatus}>
-                        {record.receivedStatus}
-                      </td>
-                      <td className="table-td" title={record.notStarted}>
-                        {record.notStarted}
-                      </td>
-                      <td className="table-td">
-                        {getActionButton(record)}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          <div style={{ 
+            border: '1px solid #ddd', 
+            borderRadius: '8px', 
+            overflow: 'hidden',
+            backgroundColor: 'white'
+          }}>
+            {data.length === 0 ? (
+              <div style={{ 
+                textAlign: 'center', 
+                padding: '40px', 
+                color: '#666',
+                fontSize: '16px'
+              }}>
+                No data found matching the current filters.
+              </div>
+            ) : (
+             <div className='multi-grid-parent'>
+              <MultiGrid
+                fixedRowCount={1}
+                rowHeight={rowHeight}
+                columnWidth={columnWidth}
+                rowCount={data.length + 1}
+                columnCount={columnCount}
+                width={containerWidth}
+                height={Math.min(600, (data.length + 1) * rowHeight + 20)}
+                cellRenderer={cellRenderer}
+                styleTopRightGrid={{ backgroundColor: "#f8f9fa" }}
+                style={{ outline: 'none' }}
+                overscanRowCount={5}
+                overscanColumnCount={2}
+                enableFixedColumnScroll={true}
+                enableFixedRowScroll={true}
+                hideTopRightGridScrollbar={true}
+                hideBottomLeftGridScrollbar={true}
+              />
+          </div>
+            )}
           </div>
         </>
       )}
