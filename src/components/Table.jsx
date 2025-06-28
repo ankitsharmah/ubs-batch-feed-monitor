@@ -10,7 +10,7 @@ const Table = ({ data, allData, setData, selectedAction }) => {
 // Add this useEffect to handle container width updates
 useEffect(() => {
   const updateWidth = () => {
-    setContainerWidth(900); // Match your CSS max-width
+    setContainerWidth(1107); // Match your CSS max-width
   };
   
   updateWidth();
@@ -185,7 +185,7 @@ const getTotalTableWidth = () => {
       const response = await apiCall('POST', `/api/send-mail/${record.id}`, {
         jobName: record.jobName,
         vendorName: record.vendorName,
-        recipient: 'meri.shraddha@ubs.com'
+         
       });
       
       if (response.success) {
